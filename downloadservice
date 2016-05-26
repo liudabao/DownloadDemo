@@ -1,0 +1,160 @@
+package com.example.visa.service;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+import com.example.visa.R;
+import com.example.visa.activity.HallActivity;
+import com.example.visa.entity.Global;
+
+import android.app.DownloadManager;
+import android.app.DownloadManager.Request;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.ProgressDialog;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
+import android.util.Log;
+import android.view.View;
+import android.widget.RemoteViews;
+
+public class DownloadService extends Service{
+
+	NotificationManager manager;
+	Notification.Builder builder;
+	Notification notification;
+	int percent=0;
+	int max=0;
+	String url;
+	@Override
+	public IBinder onBind(Intent intent) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
+	public void onCreate(){
+		super.onCreate();
+		Log.e("MyService", "onCreate executed");
+		showNotification();
+		
+		
+	}
+
+	@Override
+	public int onStartCommand(Intent intent, int flags, int startId) {
+		
+		url=intent.getStringExtra("url");
+		Log.e("MyService", "onStartCommand executed "+url);
+		update(url);
+		return super.onStartCommand(intent, flags, startId);
+	}
+	
+	@Override
+	public void onDestroy() {
+	
+		super.onDestroy();
+	}
+	
+	private void showNotification(){
+		manager=(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+		notification=new Notification(R.drawable.ic_launcher,"test",System.currentTimeMillis());
+		RemoteViews views=new RemoteViews(getPackageName(),R.layout.ui_notification);
+		views.setImageViewResource(R.id.icon, R.drawable.ic_launcher);
+		views.setProgressBar(R.id.progress,100, 0, false);		
+		views.setTextViewText(R.id.percent,""+percent+"%" );
+		//notification=builder.build();
+		notification.contentView=views;
+		manager.notify(1, notification);
+	}
+
+	private void update(final String downUrl){
+		 new Thread() {  
+	            public void run() {          
+	            	HttpURLConnection connection=null;
+					URL url;
+					int process = 0; 
+	                try {  
+	                	url = new URL(downUrl);
+	                	Log.e("Tag", "url is "+downUrl);
+						connection=(HttpURLConnection)url.openConnection();
+						connection.setRequestMethod("GET");
+						//String start="bytes"+process+"-";
+						//connection.setRequestProperty("Range", start);
+						connection.setConnectTimeout(8000);
+						connection.setReadTimeout(80);
+						connection.setRequestProperty("Accept-Encoding", "identity"); //加上这句话解决问题
+						connection.connect();
+						max=connection.getContentLength();
+						Log.e("Tag", "file large is "+max);
+						InputStream in=connection.getInputStream();
+	                    FileOutputStream fileOutputStream = null;  
+	                    File file;
+	                    if (in != null) {  
+	                        //File file = new File(  
+	                        //        Environment.getExternalStorageDirectory(),  
+	                       //         "Visa.apk");  
+	                        //Log.e("Path", ""+file);
+	                    	File path=getFilesDir();
+	                    	Log.e("Path", ""+path);
+	                    	file=new File(path,"Visa.apk");
+	                    	if(!file.exists()){
+	                    		file.createNewFile();
+	                    		Log.e("Path", ""+file);
+	                    	}
+
+	                        fileOutputStream = new FileOutputStream(file);  
+	                        byte[] buf = new byte[1024];  
+	                        int ch = -1;  
+	                        while ((ch = in.read(buf)) != -1) {         
+	                            fileOutputStream.write(buf, 0, ch);                              
+	                            process += ch; 
+	                            percent=(process*100)/max;	
+	                            Log.e("Path", ""+process);
+	                            if(process%(max/200)==0||process==max){
+	        						RemoteViews views=new RemoteViews(getPackageName(),R.layout.ui_notification);
+	        						views.setImageViewResource(R.id.icon, R.drawable.ic_launcher);
+	        						views.setProgressBar(R.id.progress, max, process, false);	        						
+	        						views.setTextViewText(R.id.percent,""+percent+"%" );
+	        						notification.contentView=views;
+	        						manager.notify(1, notification);
+	        						if(process==max){
+	        							Intent intent = new Intent(Intent.ACTION_VIEW);  
+	        					        intent.setDataAndType(Uri.fromFile(new File(getFilesDir(), "Test.apk")),  
+	        					                "application/vnd.android.package-archive");
+	        					        startActivity(intent);
+	        					       // PendingIntent pend = PendingIntent.getActivity(getApplicationContext(), 0, intent,
+	        					       // 		PendingIntent.FLAG_CANCEL_CURRENT);
+	        					       // notification.setLatestEventInfo(getApplicationContext(), "finish", ""+percent+"%", pend);
+	        					       // manager.notify(1, notification);
+	        						}
+	        					}
+	                        }  
+	  
+	                    }  
+	                    fileOutputStream.flush();  
+	                    if (fileOutputStream != null) {  
+	                        fileOutputStream.close();  
+	                    }  
+	                   // down();                   
+	                } catch (IOException e) {  
+	                    e.printStackTrace();  
+	                }  finally{
+	                	connection.disconnect();
+	                }
+	            }  
+	  
+	        }.start();  
+	}
+	
+	
+}
