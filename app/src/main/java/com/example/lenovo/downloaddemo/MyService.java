@@ -3,8 +3,10 @@ package com.example.lenovo.downloaddemo;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
@@ -37,31 +39,57 @@ public class MyService extends Service {
     NotificationManager manager;
     Notification.Builder builder;
     Notification notification;
-
+    DownloadHelper helper;
+    public DownAnsycTask task;
+    MyBinder binder=new MyBinder();
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        return null;
+        Log.e("service","bind");
+        return binder;
     }
 
+    class MyBinder extends Binder {
+        public MyService getService(){
+            return MyService.this;
+        }
+    }
     @Override
     public void onCreate(){
         super.onCreate();
+        helper=new DownloadHelper(this, "downlaod.db", 1);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flag, int startId){
         Log.e("service","start");
        // httpUtil("http://101.200.164.87:8080/visa/download/Visa.apk");
-        String url="http://101.200.164.87:8080/visa/download/Visa.apk";
-        File file=new File(Environment.getExternalStorageDirectory().getAbsolutePath(),"test.apk");
-        new DownAnsycTask(url, 3, file).execute();
+      //  String url="http://101.200.164.87:8080/visa/download/Visa.apk";
+      //  File file=new File(Environment.getExternalStorageDirectory().getAbsolutePath(),"test.apk");
+       // new DownAnsycTask(url, 3, file,helper).execute();
+     //   task=new DownAnsycTask(url, 3, file,helper );
+     //   task.execute();
         return  super.onStartCommand(intent, flag, startId);
     }
+
+    public void download(){
+        Log.e("download", "start");
+        String url="http://101.200.164.87:8080/visa/download/Visa.apk";
+        File file=new File(Environment.getExternalStorageDirectory().getAbsolutePath(),"test.apk");
+        // new DownAnsycTask(url, 3, file,helper).execute();
+        Log.e("download", "start1");
+        task=new DownAnsycTask(url, 3, file,helper );
+        Log.e("download", "start2");
+        task.execute();
+        Log.e("download", "start3");
+
+    }
+
 
     @Override
     public void onDestroy(){
         super.onDestroy();
+       // task.cancel(true);
     }
 
     private void httpUtil(final String str){

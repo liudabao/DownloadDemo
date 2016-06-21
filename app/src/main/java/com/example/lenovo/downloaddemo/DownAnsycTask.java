@@ -1,5 +1,8 @@
 package com.example.lenovo.downloaddemo;
 
+import android.content.ContentValues;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.util.Log;
 
@@ -18,11 +21,14 @@ public class DownAnsycTask extends AsyncTask <Void, Integer, Boolean>{
     private int threadNum;// 开启的线程数
     private File filePath;// 保存文件路径地址
     private int blockSize;// 每一个线程的下载量
+    DownloadHelper downloadHelper;
+    public boolean flag=true;
 
-    public DownAnsycTask(String downloadUrl, int threadNum, File fileptah) {
+    public DownAnsycTask(String downloadUrl, int threadNum, File fileptah, DownloadHelper downloadHelper) {
         this.downloadUrl = downloadUrl;
         this.threadNum = threadNum;
         this.filePath = fileptah;
+        this.downloadHelper=downloadHelper;
     }
 
     @Override
@@ -45,10 +51,20 @@ public class DownAnsycTask extends AsyncTask <Void, Integer, Boolean>{
             //File file = new File(filePath);
             for (int i = 0; i < threads.length; i++) {
                 // 启动线程，分别下载每个线程需要下载的部分
-                threads[i] = new DownThread(url, filePath, blockSize,
-                        (i + 1));
+                //threads[i] = new DownThread(url, filePath, blockSize,
+                 //       (i + 1));
+                if(!downloadHelper.isExist(i+1)){
+                    ContentValues values=new ContentValues();
+                    values.put("id", i+1);
+                    values.put("length",0);
+                    downloadHelper.saveSqlite(values);
+                }
+                threads[i]=new DownThread(url, filePath, i*blockSize+downloadHelper.query(i+1),(i+1)*blockSize-1, i+1, downloadHelper);
                 threads[i].setName("Thread:" + i);
                 threads[i].start();
+
+
+
             }
 
             boolean isfinished = false;
@@ -58,13 +74,18 @@ public class DownAnsycTask extends AsyncTask <Void, Integer, Boolean>{
                 // 当前所有线程下载总量
                 downloadedAllSize = 0;
                 for (int i = 0; i < threads.length; i++) {
+                    if(!flag){
+                        threads[i].flag=false;
+                    }
                     downloadedAllSize += threads[i].getDownloadLength();
 
                     if (!threads[i].isCompleted()) {
                         isfinished = false;
                     }
+                   // downloadHelper.query(i+1);
                 }
                 publishProgress(downloadedAllSize);
+
             }
         }catch (IOException e){
 
@@ -80,6 +101,8 @@ public class DownAnsycTask extends AsyncTask <Void, Integer, Boolean>{
 
     @Override
     protected void onPostExecute(Boolean result){
+
         Log.e("percent", "finish");
     }
+
 }

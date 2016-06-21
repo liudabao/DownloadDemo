@@ -1,5 +1,6 @@
 package com.example.lenovo.downloaddemo;
 
+import android.content.ContentValues;
 import android.util.Log;
 
 import java.io.BufferedInputStream;
@@ -27,12 +28,28 @@ public class DownThread extends Thread {
     /** 线程下载数据长度 */
     private int blockSize;
 
+    private int startPos;//开始位置
+    private int endPos;//结束位置
+    DownloadHelper downloadHelper;
+
+    public boolean flag=true;
+
     public DownThread(URL downloadUrl, File file, int blocksize,
                               int threadId) {
         this.downloadUrl = downloadUrl;
         this.file = file;
         this.threadId = threadId;
         this.blockSize = blocksize;
+    }
+
+    public DownThread(URL downloadUrl, File file, int startPos, int endPos,
+                      int threadId, DownloadHelper downloadHelper) {
+        this.downloadUrl = downloadUrl;
+        this.file = file;
+        this.threadId = threadId;
+        this.startPos = startPos;
+        this.endPos=endPos;
+        this.downloadHelper=downloadHelper;
     }
 
     @Override
@@ -44,8 +61,8 @@ public class DownThread extends Thread {
         try{
             connection=(HttpURLConnection)downloadUrl.openConnection();
             connection.setAllowUserInteraction(true);
-            int startPos = blockSize * (threadId - 1);//开始位置
-            int endPos = blockSize * threadId - 1;//结束位置
+           // int startPos = blockSize * (threadId - 1);//开始位置
+           // int endPos = blockSize * threadId - 1;//结束位置
             //设置当前线程下载的起点、终点
             connection.setRequestProperty("Range", "bytes=" + startPos + "-" + endPos);
             Log.e("size", "" + startPos + "  -- "+endPos);
@@ -54,9 +71,12 @@ public class DownThread extends Thread {
             raf = new RandomAccessFile(file, "rwd");
             raf.seek(startPos);
             int len;
-            while ((len = bis.read(buffer, 0, 1024)) != -1) {
+            while ((len = bis.read(buffer, 0, 1024)) != -1&&flag) {
                 raf.write(buffer, 0, len);
                 downloadLength += len;
+
+                //Log.e("thread "+threadId,""+downloadLength);
+                downloadHelper.update(threadId+"", downloadLength);
             }
             isCompleted = true;
 
@@ -78,6 +98,7 @@ public class DownThread extends Thread {
                     e.printStackTrace();
                 }
             }
+
         }
 
     }
